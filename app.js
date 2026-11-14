@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalBody = document.getElementById('modal-body');
     const modalClose = document.getElementById('modal-close');
 
-    // 0. 다크/라이트 모드 초기화 및 토글 제어
+    // 테마 초기화 및 전환
     function initTheme() {
         const savedTheme = localStorage.getItem('portfolio-theme') || 'dark';
         applyTheme(savedTheme);
@@ -34,20 +34,20 @@ document.addEventListener('DOMContentLoaded', () => {
         applyTheme(isLight ? 'dark' : 'light');
     });
 
-    // 1. JSON 데이터 로딩
+    // 데이터 로딩
     async function fetchProjects() {
         try {
             const response = await fetch('data/projects.json');
-            if (!response.ok) throw new Error('데이터를 불러오지 못했습니다.');
+            if (!response.ok) throw new Error('데이터 로드 실패');
             projectsData = await response.json();
             applyFilters();
         } catch (error) {
-            console.error('Error:', error);
-            gridEl.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #ef4444;">프로젝트 데이터를 로드하는 중 오류가 발생했습니다.</p>`;
+            console.error(error);
+            gridEl.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #ef4444;">데이터를 불러오지 못했습니다.</p>`;
         }
     }
 
-    // 2. 카테고리 + 실시간 검색어 통합 필터링
+    // 통합 필터링
     function applyFilters() {
         const query = searchQuery.trim().toLowerCase();
 
@@ -56,7 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const matchesSearch = !query || 
                 project.title.toLowerCase().includes(query) ||
                 project.summary.toLowerCase().includes(query) ||
-                project.description.toLowerCase().includes(query);
+                project.description.toLowerCase().includes(query) ||
+                (project.tags && project.tags.some(tag => tag.toLowerCase().includes(query)));
 
             return matchesCategory && matchesSearch;
         });
@@ -64,75 +65,138 @@ document.addEventListener('DOMContentLoaded', () => {
         renderProjects(filtered);
     }
 
-    // 3. 프로젝트 카드 렌더링
+    // 카드 그리드 렌더링
     function renderProjects(items) {
         if (items.length === 0) {
-            gridEl.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 3rem 0;">검색 조건에 일치하는 프로젝트가 없습니다.</p>`;
+            gridEl.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 4rem 0;">일치하는 작업물이 없습니다.</p>`;
             return;
         }
 
         gridEl.innerHTML = items.map(project => `
             <div class="project-card" data-id="${project.id}">
-                <img src="${project.thumbnail}" alt="${project.title}" class="card-thumbnail" onerror="this.src='https://via.placeholder.com/400x180?text=No+Image'">
+                <div class="card-thumbnail-wrap">
+                    <img src="${project.thumbnail}" alt="${project.title}" class="card-thumbnail" onerror="this.src='https://via.placeholder.com/600x350?text=No+Image'">
+                </div>
                 <div class="card-body">
-                    <span class="card-category">${project.category}</span>
+                    <div class="card-meta-row">
+                        <span class="card-category">${project.category}</span>
+                        <span class="card-date">${project.date || ''}</span>
+                    </div>
                     <h3 class="card-title">${project.title}</h3>
                     <p class="card-desc">${project.summary}</p>
+                    <div class="card-tags">
+                        ${(project.tags || []).map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
+                    </div>
                 </div>
             </div>
         `).join('');
     }
 
-    // 4. 실시간 검색 이벤트
+    // 검색 및 필터 이벤트
     searchInput.addEventListener('input', (e) => {
         searchQuery = e.target.value;
-        searchClear.classList.toggle('visible', searchQuery.length > 0);
+        if (searchClear) searchClear.classList.toggle('visible', searchQuery.length > 0);
         applyFilters();
     });
 
-    searchClear.addEventListener('click', () => {
-        searchInput.value = '';
-        searchQuery = '';
-        searchClear.classList.remove('visible');
-        searchInput.focus();
-        applyFilters();
-    });
+    if (searchClear) {
+        searchClear.addEventListener('click', () => {
+            searchInput.value = '';
+            searchQuery = '';
+            searchClear.classList.remove('visible');
+            applyFilters();
+        });
+    }
 
-    // 5. 카테고리 필터 클릭 이벤트
     filterNav.addEventListener('click', (e) => {
         if (!e.target.classList.contains('filter-btn')) return;
-
         document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
-
         currentCategory = e.target.getAttribute('data-filter');
         applyFilters();
     });
 
-    // 6. 모달 상세 팝업 열기
+    // 상세 모달 열기 (유튜브 + 다중 이미지 갤러리 포함)
     gridEl.addEventListener('click', (e) => {
         const card = e.target.closest('.project-card');
         if (!card) return;
 
-        const projectId = Number(card.getAttribute('data-id'));
-        const project = projectsData.find(p => p.id === projectId);
+        const project = projectsData.find(p => p.id === Number(card.getAttribute('data-id')));
+        if (!project) return;
 
-        if (project) {
-            modalBody.innerHTML = `
-                <span class="modal-meta">${project.category} &bull; ${project.date || ''}</span>
-                <h2>${project.title}</h2>
-                <p><strong>개요:</strong> ${project.summary}</p>
-                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
-                <p>${project.description.replace(/\n/g, '<br>')}</p>
-                ${project.link ? `<a href="${project.link}" target="_blank" style="display: inline-block; margin-top: 1rem; color: var(--accent-color); text-decoration: none; font-weight: 600;">프로젝트 링크 바로가기 &rarr;</a>` : ''}
-            `;
-            modalBackdrop.classList.add('active');
-        }
+        // 1. 유튜브 임베드 HTML 생성
+        const videoHTML = project.youtubeId ? `
+            <div class="video-container">
+                <iframe 
+                    src="https://www.youtube.com/embed/${project.youtubeId}" 
+                    title="${project.title} Video"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+        ` : '';
+
+        // 2. 이미지 갤러리 HTML 생성
+        const hasGallery = Array.isArray(project.gallery) && project.gallery.length > 0;
+        const galleryHTML = hasGallery ? `
+            <div class="gallery-viewer">
+                <div class="gallery-main-wrap">
+                    <img src="${project.gallery[0]}" alt="Gallery Preview" class="gallery-main-img" id="gallery-main-img">
+                </div>
+                ${project.gallery.length > 1 ? `
+                    <div class="gallery-thumbs" id="gallery-thumbs">
+                        ${project.gallery.map((imgUrl, idx) => `
+                            <button type="button" class="gallery-thumb-btn ${idx === 0 ? 'active' : ''}" data-src="${imgUrl}">
+                                <img src="${imgUrl}" alt="Thumbnail ${idx + 1}">
+                            </button>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        ` : '';
+
+        const mediaSectionHTML = (videoHTML || galleryHTML) ? `
+            <div class="modal-media-section">
+                ${videoHTML}
+                ${galleryHTML}
+            </div>
+        ` : '';
+
+        modalBody.innerHTML = `
+            <span class="modal-meta">${project.category} &bull; ${project.date || ''}</span>
+            <h2>${project.title}</h2>
+            <p><strong>개요:</strong> ${project.summary}</p>
+            ${mediaSectionHTML}
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
+            <p>${project.description.replace(/\n/g, '<br>')}</p>
+            <div class="card-tags" style="margin-top: 1.5rem;">
+                ${(project.tags || []).map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
+            </div>
+        `;
+
+        modalBackdrop.classList.add('active');
     });
 
-    // 7. 모달 닫기
+    // 모달 내 갤러리 썸네일 클릭 이벤트 위임
+    modalBody.addEventListener('click', (e) => {
+        const thumbBtn = e.target.closest('.gallery-thumb-btn');
+        if (!thumbBtn) return;
+
+        const mainImg = document.getElementById('gallery-main-img');
+        if (!mainImg) return;
+
+        // 활성 상태 변경 및 메인 이미지 교체
+        modalBody.querySelectorAll('.gallery-thumb-btn').forEach(btn => btn.classList.remove('active'));
+        thumbBtn.classList.add('active');
+        mainImg.src = thumbBtn.getAttribute('data-src');
+    });
+
+    // 모달 닫기 및 영상 재생 강제 종료
     function closeModal() {
         modalBackdrop.classList.remove('active');
+        setTimeout(() => {
+            modalBody.innerHTML = ''; // iframe 제거로 유튜브 소리 즉시 정지
+        }, 250);
     }
 
     modalClose.addEventListener('click', closeModal);
@@ -143,7 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Escape') closeModal();
     });
 
-    // 초기 실행
     initTheme();
     fetchProjects();
 });
