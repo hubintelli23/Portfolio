@@ -1,4 +1,5 @@
-/* Portfolio app.js v1.2 (2026-11-16) : 로고 배경(logoBg) 지원, 바로가기 데이터 캐시 갱신
+/* Portfolio app.js v1.3 (2026-11-16) : 작업물 카드 썸네일 맞춤(thumbnailFit) 지원, 데이터 캐시 갱신
+   v1.2 : 로고 배경(logoBg) 지원, 바로가기 데이터 캐시 갱신
    v1.1 : 프로젝트 바로가기 렌더링 추가, 썸네일 대체 이미지 수정 */
 document.addEventListener('DOMContentLoaded', () => {
     let projectsData = [];
@@ -39,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 데이터 로딩
     async function fetchProjects() {
         try {
-            const response = await fetch('data/projects.json');
+            const response = await fetch('data/projects.json?v=1.3');
             if (!response.ok) throw new Error('데이터 로드 실패');
             projectsData = await response.json();
             applyFilters();
@@ -56,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchLinks() {
         if (!linkGrid) return;
         try {
-            const response = await fetch('data/links.json?v=1.2');
+            const response = await fetch('data/links.json?v=1.3');
             if (!response.ok) throw new Error('링크 데이터 로드 실패');
             renderLinks(await response.json());
         } catch (error) {
@@ -112,8 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         gridEl.innerHTML = items.map(project => `
             <div class="project-card" data-id="${project.id}">
-                <div class="card-thumbnail-wrap">
-                    <img src="${project.thumbnail}" alt="${project.title}" class="card-thumbnail" onerror="this.onerror=null; this.src='https://placehold.co/600x350?text=No+Image'">
+                <div class="card-thumbnail-wrap ${project.thumbnailFit === 'contain' ? 'logo-wrap' : ''}">
+                    <img src="${project.thumbnail}" alt="${project.title}" class="card-thumbnail ${project.thumbnailFit === 'contain' ? 'is-logo' : ''}" onerror="this.onerror=null; this.src='https://placehold.co/600x350?text=No+Image'">
                 </div>
                 <div class="card-body">
                     <div class="card-meta-row">

@@ -1,4 +1,5 @@
-/* Portfolio style.css v1.2 (2026-11-16) : 로고별 배경(어두운/밝은) 추가
+/* Portfolio style.css v1.3 (2026-11-16) : 작업물 카드에 로고 썸네일 표시 스타일 추가
+   v1.2 : 로고별 배경(어두운/밝은) 추가
    v1.1 : 기본 스타일 복구 + 프로젝트 바로가기 섹션 추가 */
 
 /* ===== 테마 변수 ===== */
@@ -181,6 +182,18 @@ button { font-family: inherit; }
     object-fit: cover;
     display: block;
 }
+
+/* 썸네일이 로고일 때: 잘리지 않게 전체 표시 + 어두운 배경 */
+.card-thumbnail-wrap.logo-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(124, 156, 255, 0.18), transparent 70%),
+        #12141b;
+}
+.card-thumbnail.is-logo { object-fit: contain; }
 
 .card-body { padding: 1.1rem 1.25rem 1.25rem; }
 
