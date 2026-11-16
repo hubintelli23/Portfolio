@@ -1,5 +1,6 @@
 [
   {
+    "id": "ATS-0",
     "code": "ATS",
     "title": "《액팅소울》",
     "subtitle": "시즌 1 - 0의 시대",
@@ -9,6 +10,7 @@
     "logoBg": "dark"
   },
   {
+    "id": "ATS-2",
     "code": "ATS",
     "title": "《액팅소울》",
     "subtitle": "시즌 2 - 신들의 종언",
@@ -18,6 +20,7 @@
     "logoBg": "dark"
   },
   {
+    "id": "Y",
     "code": "Y",
     "title": "『우리들의 시간』",
     "subtitle": "",
@@ -27,6 +30,7 @@
     "logoBg": "dark"
   },
   {
+    "id": "FD",
     "code": "FD",
     "title": "Fade – Days",
     "subtitle": "",
@@ -36,6 +40,7 @@
     "logoBg": "light"
   },
   {
+    "id": "OO",
     "code": "OO",
     "title": "『오버랩 포스 웨이브』",
     "subtitle": "",
@@ -45,6 +50,7 @@
     "logoBg": "dark"
   },
   {
+    "id": "GL",
     "code": "GL",
     "title": "『이클립스 세븐』",
     "subtitle": "",
@@ -54,6 +60,7 @@
     "logoBg": "dark"
   },
   {
+    "id": "XF",
     "code": "XF",
     "title": "『신스에테르』",
     "subtitle": "",
@@ -63,6 +70,7 @@
     "logoBg": "dark"
   },
   {
+    "id": "MFT",
     "code": "MFT",
     "title": "『블루잉크 : 천년청묵』",
     "subtitle": "",
@@ -72,6 +80,7 @@
     "logoBg": "light"
   },
   {
+    "id": "AOM",
     "code": "AOM",
     "title": "『코어 시드 : 테라 휴마나』",
     "subtitle": "통합 본편",
