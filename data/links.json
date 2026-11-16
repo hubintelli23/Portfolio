@@ -5,7 +5,8 @@
     "subtitle": "시즌 1 - 0의 시대",
     "subtitleEn": "Season 1 - The Age of Zero",
     "url": "https://hubintelli23.github.io/project-ATS-0/",
-    "logo": "images/logos/ats-s1.png"
+    "logo": "images/logos/ats-s1.png",
+    "logoBg": "dark"
   },
   {
     "code": "ATS",
@@ -13,7 +14,8 @@
     "subtitle": "시즌 2 - 신들의 종언",
     "subtitleEn": "Season 2 - The End of the Gods",
     "url": "https://hubintelli23.github.io/project-ATS-2/",
-    "logo": "images/logos/ats-s2.png"
+    "logo": "images/logos/ats-s2.png",
+    "logoBg": "dark"
   },
   {
     "code": "Y",
@@ -21,7 +23,8 @@
     "subtitle": "",
     "subtitleEn": "Our Time",
     "url": "https://hubintelli23.github.io/project_Y_Test/",
-    "logo": ""
+    "logo": "images/logos/y.png",
+    "logoBg": "dark"
   },
   {
     "code": "FD",
@@ -29,7 +32,8 @@
     "subtitle": "",
     "subtitleEn": "",
     "url": "https://hubintelli23.github.io/Fade-Days/",
-    "logo": ""
+    "logo": "images/logos/fd.png",
+    "logoBg": "light"
   },
   {
     "code": "OO",
@@ -37,7 +41,8 @@
     "subtitle": "",
     "subtitleEn": "Overlap Force Wave",
     "url": "https://hubintelli23.github.io/project-OO/",
-    "logo": ""
+    "logo": "images/logos/oo.png",
+    "logoBg": "dark"
   },
   {
     "code": "GL",
@@ -45,7 +50,8 @@
     "subtitle": "",
     "subtitleEn": "Eclipse Seven",
     "url": "https://hubintelli23.github.io/project-GL/",
-    "logo": ""
+    "logo": "images/logos/gl.png",
+    "logoBg": "dark"
   },
   {
     "code": "XF",
@@ -53,7 +59,8 @@
     "subtitle": "",
     "subtitleEn": "Synesthesia",
     "url": "https://hubintelli23.github.io/project-XF/",
-    "logo": ""
+    "logo": "images/logos/xf.png",
+    "logoBg": "dark"
   },
   {
     "code": "MFT",
@@ -61,7 +68,8 @@
     "subtitle": "",
     "subtitleEn": "Blue Ink: A Thousand-Year Ink",
     "url": "https://hubintelli23.github.io/project-MFT/",
-    "logo": ""
+    "logo": "images/logos/mft.png",
+    "logoBg": "light"
   },
   {
     "code": "AOM",
@@ -69,6 +77,7 @@
     "subtitle": "통합 본편",
     "subtitleEn": "Core Seed: Terra Humana",
     "url": "https://hubintelli23.github.io/project-AOM/",
-    "logo": ""
+    "logo": "",
+    "logoBg": ""
   }
 ]

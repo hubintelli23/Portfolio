@@ -1,4 +1,5 @@
-/* Portfolio style.css v1.1 (2026-11-16) : 기본 스타일 복구 + 프로젝트 바로가기 섹션 추가 */
+/* Portfolio style.css v1.2 (2026-11-16) : 로고별 배경(어두운/밝은) 추가
+   v1.1 : 기본 스타일 복구 + 프로젝트 바로가기 섹션 추가 */
 
 /* ===== 테마 변수 ===== */
 :root {
@@ -452,6 +453,18 @@ button { font-family: inherit; }
     letter-spacing: 0.06em;
 }
 .link-icon.has-logo .link-code { visibility: hidden; }
+
+/* 로고 색에 맞춘 고정 배경 (테마와 상관없이 로고가 잘 보이게) */
+.link-icon.logo-bg-dark {
+    background:
+        radial-gradient(circle at 50% 50%, rgba(124, 156, 255, 0.18), transparent 70%),
+        #12141b;
+}
+.link-icon.logo-bg-light {
+    background:
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.9), transparent 75%),
+        #ece7dc;
+}
 
 .link-text {
     display: flex;

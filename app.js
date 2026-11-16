@@ -1,4 +1,5 @@
-/* Portfolio app.js v1.1 (2026-11-16) : 프로젝트 바로가기 렌더링 추가, 썸네일 대체 이미지 수정 */
+/* Portfolio app.js v1.2 (2026-11-16) : 로고 배경(logoBg) 지원, 바로가기 데이터 캐시 갱신
+   v1.1 : 프로젝트 바로가기 렌더링 추가, 썸네일 대체 이미지 수정 */
 document.addEventListener('DOMContentLoaded', () => {
     let projectsData = [];
     let currentCategory = 'all';
@@ -55,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchLinks() {
         if (!linkGrid) return;
         try {
-            const response = await fetch('data/links.json');
+            const response = await fetch('data/links.json?v=1.2');
             if (!response.ok) throw new Error('링크 데이터 로드 실패');
             renderLinks(await response.json());
         } catch (error) {
@@ -70,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
             <a class="link-tile" href="${link.url}" target="_blank" rel="noopener noreferrer"
                aria-label="${link.title} ${link.subtitle || ''} 새 창으로 열기">
-                <div class="link-icon ${link.logo ? 'has-logo' : ''}">
+                <div class="link-icon ${link.logo ? 'has-logo' : ''} ${link.logo && link.logoBg ? 'logo-bg-' + link.logoBg : ''}">
                     <span class="link-code">${link.code}</span>
                     ${link.logo ? `<img src="${link.logo}" alt="${link.title} 로고" loading="lazy"
                         onerror="this.parentElement.classList.remove('has-logo'); this.remove();">` : ''}
