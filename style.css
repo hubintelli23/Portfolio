@@ -1,4 +1,6 @@
-/* Portfolio style.css v1.4 (2026-11-16) : 업데이트 로그 섹션, 바로가기 NEW·업데이트 시각 표시
+/* Portfolio style.css v1.6 (2026-11-16) : 업데이트 시간 표시 스타일
+   v1.5 : GitHub 자동 기록 스타일, 불러오기 상태 문구
+   v1.4 : 업데이트 로그 섹션, 바로가기 NEW·업데이트 시각 표시
    v1.3 : 작업물 카드에 로고 썸네일 표시 스타일 추가
    v1.2 : 로고별 배경(어두운/밝은) 추가
    v1.1 : 기본 스타일 복구 + 프로젝트 바로가기 섹션 추가 */
@@ -571,6 +573,19 @@ button { font-family: inherit; }
     font-size: 0.85rem;
 }
 .update-date small { color: var(--text-secondary); font-size: 0.75rem; }
+.update-time {
+    color: var(--accent-color);
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.update-item-time {
+    margin-left: 0.35rem;
+    color: var(--text-secondary);
+    opacity: 0.75;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
 
 .update-body {
     background: var(--surface-color);
@@ -611,6 +626,18 @@ button { font-family: inherit; }
 .update-type.type-수정 { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 .update-type.type-콘텐츠 { background: rgba(124, 156, 255, 0.15); color: var(--accent-color); }
 .update-type.type-디자인 { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+.update-type.type-GitHub { background: rgba(148, 163, 184, 0.18); color: var(--text-secondary); text-decoration: none; }
+a.update-type:hover { color: var(--text-primary); }
+.update-item.from-github .update-title { font-size: 0.92rem; font-weight: 600; }
+.update-item.from-github::before { border-style: dashed; }
+
+.update-status {
+    margin: 0.75rem 0 0;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+.update-status:empty { display: none; }
 
 .update-title {
     margin: 0.45rem 0 0.3rem;

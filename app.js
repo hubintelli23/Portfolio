@@ -1,4 +1,6 @@
-/* Portfolio app.js v1.4 (2026-11-16) : 업데이트 로그(data/updates.json) + 바로가기 NEW·마지막 업데이트 표시
+/* Portfolio app.js v1.6 (2026-11-16) : 업데이트 시간(시:분) 표시 — GitHub 커밋 시각, 기록의 time 칸
+   v1.5 : 다른 프로젝트 업데이트 자동 수집 (프로젝트 updates.json → 없으면 GitHub 커밋)
+   v1.4 : 업데이트 로그(data/updates.json) + 바로가기 NEW·마지막 업데이트 표시
    v1.3 : 작업물 카드 썸네일 맞춤(thumbnailFit) 지원, 데이터 캐시 갱신
    v1.2 : 로고 배경(logoBg) 지원, 바로가기 데이터 캐시 갱신
    v1.1 : 프로젝트 바로가기 렌더링 추가, 썸네일 대체 이미지 수정 */
@@ -41,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 데이터 로딩
     async function fetchProjects() {
         try {
-            const response = await fetch('data/projects.json?v=1.4');
+            const response = await fetch('data/projects.json?v=1.6');
             if (!response.ok) throw new Error('데이터 로드 실패');
             projectsData = await response.json();
             applyFilters();
@@ -69,6 +71,32 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
     }
 
+    // 한국 시간 HH:MM
+    const kstTime = (iso) => new Date(iso).toLocaleTimeString('ko-KR', {
+        timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false
+    });
+
+    // 기록의 date(+time)를 하나의 시각으로 (time 없으면 null)
+    function entryMoment(u) {
+        if (u.at) return u.at;                                   // GitHub 커밋 (ISO)
+        if (u.time && /^\d{1,2}:\d{2}$/.test(u.time)) {
+            const [h, m] = u.time.split(':');
+            return `${u.date}T${h.padStart(2, '0')}:${m}:00+09:00`; // 한국 시간 기준
+        }
+        return null;
+    }
+
+    // 바로가기용: 방금 / n분 전 / 오늘 14:30 / 어제 09:10 / n일 전
+    function relativeMoment(iso) {
+        const d = new Date(iso);
+        if (isNaN(d)) return '';
+        const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+        if (mins < 1) return '방금';
+        if (mins < 60) return `${mins}분 전`;
+        const day = relativeDay(d);
+        return (day === '오늘' || day === '어제') ? `${day} ${kstTime(iso)}` : day;
+    }
+
     // =========================================================
     // 프로젝트 바로가기 (data/links.json)
     // logo 값이 비어 있으면 코드명(code) 아이콘을 대신 보여줌
@@ -79,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchLinks() {
         if (!linkGrid) return;
         try {
-            const response = await fetch('data/links.json?v=1.4');
+            const response = await fetch('data/links.json?v=1.6');
             if (!response.ok) throw new Error('링크 데이터 로드 실패');
             linksData = await response.json();
             renderLinks(linksData);
@@ -113,32 +141,184 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================
-    // 업데이트 로그 (data/updates.json)
+    // 업데이트 로그
+    // 1) 포트폴리오 자체 기록 : data/updates.json
+    // 2) 각 프로젝트 기록     : 프로젝트 주소/updates.json (있으면 우선 사용)
+    // 3) 자동 기록            : GitHub 커밋 (프로젝트에 updates.json이 없을 때)
     // - project 값은 links.json의 id (ATS-0, Y, OO ...) 또는 PORTFOLIO
-    // - 최신 날짜가 위로 오도록 자동 정렬
     // =========================================================
-    const NEW_DAYS = 7;          // 이 기간 안의 기록이 있으면 바로가기에 NEW 표시
-    const LOG_PAGE_SIZE = 5;     // 처음에 보여줄 기록 수
+    const NEW_DAYS = 7;            // 이 기간 안의 기록이 있으면 바로가기에 NEW 표시
+    const LOG_PAGE_SIZE = 5;       // 처음에 보여줄 기록 수
+    const COMMITS_PER_REPO = 15;   // 저장소마다 가져올 최근 커밋 수
+    const GH_CACHE_KEY = 'portfolio-gh-commits-v2';
+    const GH_CACHE_MS = 60 * 60 * 1000; // GitHub 요청 제한(시간당 60회) 때문에 1시간 저장
+
     const updateList = document.getElementById('update-list');
     const updateFilter = document.getElementById('update-filter');
     const updateMore = document.getElementById('update-more');
+    const updateStatus = document.getElementById('update-status');
     let updatesData = [];
+    let lastPushed = {};           // { 프로젝트 id: 마지막 커밋 시각 }
     let updateProject = 'all';
     let updateShown = LOG_PAGE_SIZE;
 
+    // 한국 시간 기준 YYYY-MM-DD
+    const kstDate = (iso) => new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+
+    function repoOf(url) {
+        try {
+            const u = new URL(url);
+            const owner = u.hostname.split('.')[0];
+            const repo = u.pathname.split('/').filter(Boolean)[0];
+            return owner && repo ? `${owner}/${repo}` : '';
+        } catch { return ''; }
+    }
+
+    // 날짜 → 시간 순으로 최신이 위 (시간이 없는 기록은 그날의 맨 아래)
+    const sortKey = (u) => {
+        const m = entryMoment(u);
+        return m ? new Date(m).toISOString() : `${u.date}T00:00:00.000Z`;
+    };
+    const sortByDate = (list) => list
+        .filter(u => u && u.date)
+        .sort((a, b) => b.date.localeCompare(a.date) || sortKey(b).localeCompare(sortKey(a)));
+
+    async function fetchJson(url) {
+        const res = await fetch(url, { cache: 'no-cache' });
+        if (!res.ok) throw new Error(`${url}: ${res.status}`);
+        return res.json();
+    }
+
+    // 2) 프로젝트 저장소의 updates.json
+    async function fetchProjectLog(link) {
+        const base = link.url.endsWith('/') ? link.url : link.url + '/';
+        try {
+            const list = await fetchJson(base + 'updates.json');
+            if (!Array.isArray(list)) return null;
+            return list.map(u => ({ ...u, project: u.project || link.id, source: 'project' }));
+        } catch {
+            return null; // 파일이 없으면 커밋으로 대체
+        }
+    }
+
+    // 3) GitHub 커밋 (1시간 캐시)
+    function readCommitCache() {
+        try {
+            const c = JSON.parse(localStorage.getItem(GH_CACHE_KEY) || 'null');
+            return c && Date.now() - c.time < GH_CACHE_MS ? c.data : null;
+        } catch { return null; }
+    }
+
+    async function fetchCommits(repos) {
+        const cached = readCommitCache();
+        if (cached) return cached;
+        const data = {};
+        const results = await Promise.allSettled(repos.map(async repo => {
+            const res = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=${COMMITS_PER_REPO}`,
+                { headers: { Accept: 'application/vnd.github+json' } });
+            if (!res.ok) throw new Error(`${repo}: ${res.status}`);
+            const list = await res.json();
+            data[repo] = list.map(c => ({
+                date: c.commit?.author?.date || c.commit?.committer?.date,
+                message: c.commit?.message || ''
+            }));
+        }));
+        const failed = results.filter(r => r.status === 'rejected');
+        if (failed.length) console.warn('GitHub 커밋 일부 실패', failed.map(f => f.reason?.message));
+        if (Object.keys(data).length) {
+            try { localStorage.setItem(GH_CACHE_KEY, JSON.stringify({ time: Date.now(), data })); } catch { /* 무시 */ }
+        }
+        return data;
+    }
+
+    // 커밋 메시지를 읽기 쉬운 한국어로 정리
+    function tidyCommit(message) {
+        const line = message.split('\n')[0].trim();
+        if (!line || /^Merge (branch|pull request)/i.test(line)) return '';
+        if (/^Add files via upload$/i.test(line)) return '파일 업로드';
+        let m;
+        if ((m = line.match(/^Create (.+)$/i))) return `${m[1]} 추가`;
+        if ((m = line.match(/^Update (.+)$/i))) return `${m[1]} 수정`;
+        if ((m = line.match(/^Delete (.+)$/i))) return `${m[1]} 삭제`;
+        if ((m = line.match(/^Rename (.+)$/i))) return `${m[1]} 이름 변경`;
+        return line;
+    }
+
+    // 커밋을 하루 단위로 묶어 로그 형식으로 변환
+    function commitsToLog(link, repo, commits) {
+        const byDay = {};
+        commits.forEach(c => {
+            if (!c.date) return;
+            const text = tidyCommit(c.message);
+            if (!text) return;
+            const day = kstDate(c.date);
+            (byDay[day] ||= []).push({ text, at: c.date });
+        });
+        return Object.entries(byDay).map(([date, msgs]) => {
+            // 최신 커밋이 위로, 같은 메시지는 "×횟수"로 합치고 가장 최근 시각을 표시
+            msgs.sort((a, b) => b.at.localeCompare(a.at));
+            const merged = [];
+            msgs.forEach(m => {
+                const found = merged.find(x => x.text === m.text);
+                if (found) found.count++;
+                else merged.push({ text: m.text, at: m.at, count: 1 });
+            });
+            const items = merged.map(m => ({
+                text: m.count > 1 ? `${m.text} ×${m.count}` : m.text,
+                time: kstTime(m.at)
+            }));
+            return {
+                date,
+                at: msgs[0].at,            // 그날 마지막 커밋 시각
+                project: link.id,
+                type: 'GitHub',
+                title: `저장소 업데이트 ${msgs.length}건`,
+                items: items.length > 6 ? [...items.slice(0, 6), { text: `외 ${items.length - 6}건` }] : items,
+                link: `https://github.com/${repo}/commits`,
+                source: 'github'
+            };
+        });
+    }
+
     async function fetchUpdates() {
         if (!updateList) return;
+
+        // 1) 포트폴리오 기록 먼저 표시
+        let local = [];
         try {
-            const response = await fetch('data/updates.json?v=1.4');
-            if (!response.ok) throw new Error('업데이트 로그 로드 실패');
-            updatesData = (await response.json())
-                .filter(u => u && u.date)
-                .sort((a, b) => b.date.localeCompare(a.date));
-            renderUpdateFilter();
-            renderUpdates();
+            local = (await fetchJson('data/updates.json?v=1.6'))
+                .map(u => ({ ...u, source: 'portfolio' }));
         } catch (error) {
             console.error(error);
-            updateList.innerHTML = `<p class="link-error">업데이트 로그를 불러오지 못했습니다.</p>`;
+        }
+        updatesData = sortByDate(local);
+        renderUpdateFilter();
+        renderUpdates();
+        if (updateStatus) updateStatus.textContent = '프로젝트 업데이트를 불러오는 중…';
+
+        // 2)·3) 각 프로젝트 기록 + GitHub 커밋
+        const targets = linksData.filter(l => l.id && l.url);
+        const repoMap = Object.fromEntries(targets.map(l => [l.id, repoOf(l.url)]));
+        const [projectLogs, commits] = await Promise.all([
+            Promise.all(targets.map(fetchProjectLog)),
+            fetchCommits([...new Set(Object.values(repoMap).filter(Boolean))]).catch(() => ({}))
+        ]);
+
+        const remote = [];
+        targets.forEach((link, i) => {
+            const repo = repoMap[link.id];
+            const repoCommits = commits[repo] || [];
+            if (repoCommits[0]?.date) lastPushed[link.id] = repoCommits[0].date;
+            if (projectLogs[i]) remote.push(...projectLogs[i]);
+            else if (repoCommits.length) remote.push(...commitsToLog(link, repo, repoCommits));
+        });
+
+        updatesData = sortByDate([...local, ...remote]);
+        renderUpdateFilter();
+        renderUpdates();
+        if (updateStatus) {
+            const gotGithub = Object.keys(commits).length > 0;
+            updateStatus.textContent = gotGithub ? '' : 'GitHub 기록을 지금 불러올 수 없어 일부만 표시합니다.';
         }
     }
 
@@ -155,7 +335,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderUpdateFilter() {
         if (!updateFilter) return;
-        const ids = [...new Set(updatesData.map(u => u.project))];
+        // 바로가기 순서대로 버튼 정렬, 포트폴리오는 맨 뒤
+        const present = new Set(updatesData.map(u => u.project));
+        const order = [...linksData.map(l => l.id), 'PORTFOLIO'];
+        const ids = [...order.filter(id => present.has(id)), ...[...present].filter(id => !order.includes(id))];
+        if (updateProject !== 'all' && !present.has(updateProject)) updateProject = 'all';
         updateFilter.innerHTML =
             `<button type="button" class="filter-btn ${updateProject === 'all' ? 'active' : ''}" data-project="all">전체</button>` +
             ids.map(id => {
@@ -173,24 +357,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateList.innerHTML = list.slice(0, updateShown).map(u => {
             const info = projectInfo(u.project);
+            const moment = entryMoment(u);
             const name = info.url
                 ? `<a href="${info.url}" target="_blank" rel="noopener noreferrer">${esc(info.name)}</a>`
                 : esc(info.name);
+            const typeTag = u.type
+                ? (u.link
+                    ? `<a class="update-type type-${esc(u.type)}" href="${esc(u.link)}" target="_blank" rel="noopener noreferrer">${esc(u.type)}</a>`
+                    : `<span class="update-type type-${esc(u.type)}">${esc(u.type)}</span>`)
+                : '';
             return `
-            <li class="update-item">
+            <li class="update-item ${u.source === 'github' ? 'from-github' : ''}">
                 <div class="update-date">
                     <strong>${esc(u.date.replace(/-/g, '.'))}</strong>
-                    <small>${relativeDay(u.date)}</small>
+                    ${moment ? `<time class="update-time" datetime="${esc(moment)}">${kstTime(moment)}</time>` : ''}
+                    <small>${moment ? relativeMoment(moment) : relativeDay(u.date)}</small>
                 </div>
                 <div class="update-body">
                     <div class="update-meta">
                         <span class="link-badge">${esc(info.code)}</span>
                         <span class="update-project">${name}</span>
                         ${u.version ? `<span class="update-version">${esc(u.version)}</span>` : ''}
-                        ${u.type ? `<span class="update-type type-${esc(u.type)}">${esc(u.type)}</span>` : ''}
+                        ${typeTag}
                     </div>
                     ${u.title ? `<h3 class="update-title">${esc(u.title)}</h3>` : ''}
-                    ${(u.items || []).length ? `<ul class="update-points">${u.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}
+                    ${(u.items || []).length ? `<ul class="update-points">${u.items.map(i => typeof i === 'string'
+                        ? `<li>${esc(i)}</li>`
+                        : `<li>${esc(i.text)}${i.time ? ` <time class="update-item-time">${esc(i.time)}</time>` : ''}</li>`).join('')}</ul>` : ''}
                 </div>
             </li>`;
         }).join('');
@@ -215,58 +408,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // =========================================================
-    // GitHub 저장소 마지막 업데이트 시각 (자동)
-    // - links.json의 url(https://아이디.github.io/저장소/)에서 저장소 이름을 읽음
-    // - GitHub 요청 제한(시간당 60회)을 넘지 않도록 1시간 동안 브라우저에 저장해 둠
-    // =========================================================
-    const GH_CACHE_KEY = 'portfolio-gh-pushed';
-    const GH_CACHE_MS = 60 * 60 * 1000;
-
-    function repoOf(url) {
-        try {
-            const u = new URL(url);
-            const owner = u.hostname.split('.')[0];
-            const repo = u.pathname.split('/').filter(Boolean)[0];
-            return owner && repo ? `${owner}/${repo}` : '';
-        } catch { return ''; }
-    }
-
-    async function fetchPushedTimes(links) {
-        let cache = null;
-        try { cache = JSON.parse(localStorage.getItem(GH_CACHE_KEY) || 'null'); } catch { cache = null; }
-        if (cache && Date.now() - cache.time < GH_CACHE_MS) return cache.data;
-
-        const data = {};
-        const repos = [...new Set(links.map(l => repoOf(l.url)).filter(Boolean))];
-        const results = await Promise.allSettled(repos.map(async repo => {
-            const res = await fetch(`https://api.github.com/repos/${repo}`, { headers: { Accept: 'application/vnd.github+json' } });
-            if (!res.ok) throw new Error(`${repo}: ${res.status}`);
-            const json = await res.json();
-            data[repo] = json.pushed_at;
-        }));
-        const failed = results.filter(r => r.status === 'rejected');
-        if (failed.length) console.warn('GitHub 업데이트 시각 일부 실패', failed.map(f => f.reason?.message));
-        if (Object.keys(data).length) {
-            try { localStorage.setItem(GH_CACHE_KEY, JSON.stringify({ time: Date.now(), data })); } catch { /* 저장 불가 시 무시 */ }
-        }
-        return data;
-    }
-
     // 바로가기 아이콘에 NEW / 마지막 업데이트 표시
-    async function decorateLinkTiles() {
+    function decorateLinkTiles() {
         if (!linkGrid || !linksData.length) return;
-        const latestLog = {};
+        const latestLog = {};    // 프로젝트별 가장 최근 기록 (시각이 있으면 시각, 없으면 날짜)
         updatesData.forEach(u => {
-            if (!latestLog[u.project] || u.date > latestLog[u.project]) latestLog[u.project] = u.date;
+            const when = entryMoment(u) || u.date;
+            if (!latestLog[u.project] || new Date(when) > new Date(latestLog[u.project])) latestLog[u.project] = when;
         });
-        const pushed = await fetchPushedTimes(linksData).catch(() => ({}));
 
         linksData.forEach(link => {
             const tile = linkGrid.querySelector(`.link-tile[data-id="${CSS.escape(link.id || '')}"]`);
             if (!tile) return;
             const logDate = latestLog[link.id];
-            const pushedAt = pushed[repoOf(link.url)];
 
             const newBadge = tile.querySelector('.link-new');
             if (logDate) {
@@ -274,12 +428,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 newBadge.hidden = days > NEW_DAYS;
             }
 
-            // GitHub 업로드 시각과 로그 날짜 중 더 최근 것을 표시
-            const when = [pushedAt, logDate].filter(Boolean)
+            // 마지막 커밋 시각과 로그 날짜 중 더 최근 것을 표시
+            const when = [lastPushed[link.id], logDate].filter(Boolean)
                 .sort((a, b) => new Date(b) - new Date(a))[0];
             const updatedEl = tile.querySelector('.link-updated');
             if (when) {
-                updatedEl.textContent = `업데이트 ${relativeDay(when)}`;
+                const hasTime = String(when).includes('T');
+                updatedEl.textContent = `업데이트 ${hasTime ? relativeMoment(when) : relativeDay(when)}`;
+                if (hasTime) updatedEl.title = new Date(when).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
                 updatedEl.hidden = false;
             }
         });
