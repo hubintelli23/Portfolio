@@ -1,3 +1,4 @@
+/* Portfolio app.js v1.1 (2026-11-16) : 프로젝트 바로가기 렌더링 추가, 썸네일 대체 이미지 수정 */
 document.addEventListener('DOMContentLoaded', () => {
     let projectsData = [];
     let currentCategory = 'all';
@@ -47,6 +48,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 프로젝트 바로가기 (data/links.json)
+    // logo 값이 비어 있으면 코드명(code) 아이콘을 대신 보여줌
+    const linkGrid = document.getElementById('link-grid');
+
+    async function fetchLinks() {
+        if (!linkGrid) return;
+        try {
+            const response = await fetch('data/links.json');
+            if (!response.ok) throw new Error('링크 데이터 로드 실패');
+            renderLinks(await response.json());
+        } catch (error) {
+            console.error(error);
+            linkGrid.innerHTML = `<p class="link-error">바로가기를 불러오지 못했습니다.</p>`;
+        }
+    }
+
+    function renderLinks(links) {
+        linkGrid.innerHTML = links.map(link => {
+            const subLine = [link.subtitle, link.subtitleEn].filter(Boolean).join(' · ');
+            return `
+            <a class="link-tile" href="${link.url}" target="_blank" rel="noopener noreferrer"
+               aria-label="${link.title} ${link.subtitle || ''} 새 창으로 열기">
+                <div class="link-icon ${link.logo ? 'has-logo' : ''}">
+                    <span class="link-code">${link.code}</span>
+                    ${link.logo ? `<img src="${link.logo}" alt="${link.title} 로고" loading="lazy"
+                        onerror="this.parentElement.classList.remove('has-logo'); this.remove();">` : ''}
+                </div>
+                <div class="link-text">
+                    <span class="link-badge">${link.code}</span>
+                    <strong class="link-title">${link.title}</strong>
+                    ${subLine ? `<small class="link-sub">${subLine}</small>` : ''}
+                </div>
+            </a>`;
+        }).join('');
+    }
+
     // 통합 필터링
     function applyFilters() {
         const query = searchQuery.trim().toLowerCase();
@@ -75,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gridEl.innerHTML = items.map(project => `
             <div class="project-card" data-id="${project.id}">
                 <div class="card-thumbnail-wrap">
-                    <img src="${project.thumbnail}" alt="${project.title}" class="card-thumbnail" onerror="this.src='https://via.placeholder.com/600x350?text=No+Image'">
+                    <img src="${project.thumbnail}" alt="${project.title}" class="card-thumbnail" onerror="this.onerror=null; this.src='https://placehold.co/600x350?text=No+Image'">
                 </div>
                 <div class="card-body">
                     <div class="card-meta-row">
@@ -208,5 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     initTheme();
+    fetchLinks();
     fetchProjects();
 });
