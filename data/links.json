@@ -50,6 +50,16 @@
     "logoBg": "dark"
   },
   {
+    "id": "KL",
+    "code": "KL",
+    "title": "Project KL",
+    "subtitle": "아카데미 이클립스",
+    "subtitleEn": "Season 1 Combat Prototype",
+    "url": "https://hubintelli23.github.io/Project-KL/",
+    "logo": "",
+    "logoBg": ""
+  },
+  {
     "id": "GL",
     "code": "GL",
     "title": "『이클립스 세븐』",
